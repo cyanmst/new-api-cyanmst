@@ -18,13 +18,15 @@ const (
 // BillingSetting is managed by config.GlobalConfig.Register.
 // DB keys: billing_setting.billing_mode, billing_setting.billing_expr
 type BillingSetting struct {
-	BillingMode map[string]string `json:"billing_mode"`
-	BillingExpr map[string]string `json:"billing_expr"`
+	BillingMode   map[string]string `json:"billing_mode"`
+	BillingExpr   map[string]string `json:"billing_expr"`
+	DynamicMatch  map[string]string `json:"dynamic_match"`
 }
 
 var billingSetting = BillingSetting{
-	BillingMode: make(map[string]string),
-	BillingExpr: make(map[string]string),
+	BillingMode:  make(map[string]string),
+	BillingExpr:  make(map[string]string),
+	DynamicMatch: make(map[string]string),
 }
 
 func init() {
@@ -56,12 +58,15 @@ func GetBillingExprCopy() map[string]string {
 }
 
 func GetPricingSyncData(base map[string]any) map[string]any {
-	extra := make(map[string]any, 2)
+	extra := make(map[string]any, 3)
 	if modes := GetBillingModeCopy(); len(modes) > 0 {
 		extra[BillingModeField] = modes
 	}
 	if exprs := GetBillingExprCopy(); len(exprs) > 0 {
 		extra[BillingExprField] = exprs
+	}
+	if dm := GetDynamicMatchCopy(); len(dm) > 0 {
+		extra["dynamic_match"] = dm
 	}
 	return lo.Assign(base, extra)
 }

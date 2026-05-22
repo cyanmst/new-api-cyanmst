@@ -42,6 +42,7 @@ const EMPTY_MODEL = {
   audioOutputPrice: '',
   billingExpr: '',
   requestRuleExpr: '',
+  dynamicMatchConfig: '',
   rawRatios: {
     modelRatio: '',
     completionRatio: '',
@@ -137,6 +138,17 @@ const buildModelState = (name, sourceMaps) => {
       hasConflict: false,
     };
   }
+  if (billingMode === 'dynamic_match') {
+    const rawConfig = sourceMaps.DynamicMatch?.[name] || '';
+    return {
+      ...EMPTY_MODEL,
+      name,
+      billingMode: 'dynamic_match',
+      dynamicMatchConfig: rawConfig,
+      rawRatios: { ...EMPTY_MODEL.rawRatios },
+      hasConflict: false,
+    };
+  }
 
   const modelRatio = toNumericString(sourceMaps.ModelRatio[name]);
   const completionRatio = toNumericString(sourceMaps.CompletionRatio[name]);
@@ -225,13 +237,14 @@ const buildModelState = (name, sourceMaps) => {
 
 export const isBasePricingUnset = (model) =>
   model.billingMode !== 'tiered_expr' &&
+  model.billingMode !== 'dynamic_match' &&
   !hasValue(model.fixedPrice) && !hasValue(model.inputPrice);
 
 export const getModelWarnings = (model, t) => {
   if (!model) {
     return [];
   }
-  if (model.billingMode === 'tiered_expr') {
+  if (model.billingMode === 'tiered_expr' || model.billingMode === 'dynamic_match') {
     return [];
   }
   const warnings = [];
@@ -289,6 +302,17 @@ export const getModelWarnings = (model, t) => {
 };
 
 export const buildSummaryText = (model, t) => {
+  if (model.billingMode === 'dynamic_match') {
+    try {
+      const cfg = JSON.parse(model.dynamicMatchConfig || '{}');
+      const ruleCount = Array.isArray(cfg.rules) ? cfg.rules.length : 0;
+      return ruleCount > 0
+        ? `${t('动态计费')} (${ruleCount} ${t('条规则')})`
+        : t('动态计费');
+    } catch {
+      return t('动态计费');
+    }
+  }
   const requestRuleSuffix =
     model.billingMode === 'tiered_expr' && model.requestRuleExpr
     ? `，${t('请求规则')}`
@@ -454,6 +478,35 @@ const serializeModel = (model, t) => {
 
 export const buildPreviewRows = (model, t) => {
   if (!model) return [];
+
+  if (model.billingMode === 'dynamic_match') {
+    const rows = [
+      {
+        key: 'BillingMode',
+        label: 'ModelBillingMode',
+        value: 'dynamic_match',
+      },
+    ];
+    try {
+      const cfg = JSON.parse(model.dynamicMatchConfig || '{}');
+      const ruleCount = Array.isArray(cfg.rules) ? cfg.rules.length : 0;
+      rows.push({
+        key: 'DynamicMatchConfig',
+        label: 'DynamicMatchConfig',
+        value: ruleCount > 0
+          ? `${ruleCount} ${t('条规则')}，${t('倍率字段')}: ${cfg.multiplier_field || t('无')}`
+          : t('未配置'),
+      });
+    } catch {
+      rows.push({
+        key: 'DynamicMatchConfig',
+        label: 'DynamicMatchConfig',
+        value: t('JSON 格式错误'),
+      });
+    }
+    return rows;
+  }
+
   const finalBillingExpr = combineBillingExpr(
     model.billingExpr,
     model.requestRuleExpr,
@@ -648,6 +701,7 @@ export function useModelPricingEditorState({
       AudioCompletionRatio: parseOptionJSON(options.AudioCompletionRatio),
       ModelBillingMode: parseOptionJSON(options['billing_setting.billing_mode']),
       ModelBillingExpr: parseOptionJSON(options['billing_setting.billing_expr']),
+      DynamicMatch: parseOptionJSON(options['billing_setting.dynamic_match']),
     };
 
     const names = new Set([
@@ -663,6 +717,7 @@ export function useModelPricingEditorState({
       ...Object.keys(sourceMaps.AudioCompletionRatio),
       ...Object.keys(sourceMaps.ModelBillingMode),
       ...Object.keys(sourceMaps.ModelBillingExpr),
+      ...Object.keys(sourceMaps.DynamicMatch),
     ]);
 
     const nextModels = Array.from(names)
@@ -879,6 +934,13 @@ export function useModelPricingEditorState({
       if (value === 'tiered_expr' && !model.billingExpr) {
         next.billingExpr = 'tier("base", p * 0 + c * 0)';
       }
+      if (value === 'dynamic_match' && !model.dynamicMatchConfig) {
+        next.dynamicMatchConfig = JSON.stringify({
+          multiplier_field: '',
+          default_price: 0,
+          rules: [{ label: '', field_path: '', operator: '==', value: '', price_per_unit: 0 }],
+        }, null, 2);
+      }
       return next;
     });
   };
@@ -896,6 +958,14 @@ export function useModelPricingEditorState({
     upsertModel(selectedModel.name, (model) => ({
       ...model,
       requestRuleExpr: newExpr,
+    }));
+  };
+
+  const handleDynamicMatchConfigChange = (newConfig) => {
+    if (!selectedModel) return;
+    upsertModel(selectedModel.name, (model) => ({
+      ...model,
+      dynamicMatchConfig: newConfig,
     }));
   };
 
@@ -973,6 +1043,7 @@ export function useModelPricingEditorState({
           audioOutputPrice: selectedModel.audioOutputPrice,
           billingExpr: selectedModel.billingExpr || '',
           requestRuleExpr: selectedModel.requestRuleExpr || '',
+          dynamicMatchConfig: selectedModel.dynamicMatchConfig || '',
         };
 
         if (
@@ -1037,6 +1108,7 @@ export function useModelPricingEditorState({
       const tieredOutput = {
         'billing_setting.billing_mode': {},
         'billing_setting.billing_expr': {},
+        'billing_setting.dynamic_match': {},
       };
 
       for (const model of models) {
@@ -1048,6 +1120,11 @@ export function useModelPricingEditorState({
           if (finalBillingExpr) {
             tieredOutput['billing_setting.billing_mode'][model.name] = 'tiered_expr';
             tieredOutput['billing_setting.billing_expr'][model.name] = finalBillingExpr;
+          }
+        } else if (model.billingMode === 'dynamic_match') {
+          if (model.dynamicMatchConfig) {
+            tieredOutput['billing_setting.billing_mode'][model.name] = 'dynamic_match';
+            tieredOutput['billing_setting.dynamic_match'][model.name] = model.dynamicMatchConfig;
           }
         }
 
@@ -1125,6 +1202,7 @@ export function useModelPricingEditorState({
     handleBillingModeChange,
     handleBillingExprChange,
     handleRequestRuleExprChange,
+    handleDynamicMatchConfigChange,
     handleSubmit,
     addModel,
     deleteModel,

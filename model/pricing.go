@@ -35,6 +35,7 @@ type Pricing struct {
 	SupportedEndpointTypes []constant.EndpointType `json:"supported_endpoint_types"`
 	BillingMode            string                  `json:"billing_mode,omitempty"`
 	BillingExpr            string                  `json:"billing_expr,omitempty"`
+	DynamicMatchConfig     string                  `json:"dynamic_match_config,omitempty"`
 	PricingVersion         string                  `json:"pricing_version,omitempty"`
 }
 
@@ -331,10 +332,17 @@ func updatePricing() {
 			audioCompletionRatio := ratio_setting.GetAudioCompletionRatio(model)
 			pricing.AudioCompletionRatio = &audioCompletionRatio
 		}
-		if billingMode := billing_setting.GetBillingMode(model); billingMode == "tiered_expr" {
+		billingMode := billing_setting.GetBillingMode(model)
+		if billingMode == "tiered_expr" {
 			if expr, ok := billing_setting.GetBillingExpr(model); ok && strings.TrimSpace(expr) != "" {
 				pricing.BillingMode = billingMode
 				pricing.BillingExpr = expr
+			}
+		} else if billingMode == billing_setting.BillingModeDynamicMatch {
+			if dmCfg := billing_setting.GetDynamicMatchConfig(model); dmCfg != nil {
+				pricing.BillingMode = billingMode
+				raw, _ := common.Marshal(dmCfg)
+				pricing.DynamicMatchConfig = string(raw)
 			}
 		}
 		pricingMap = append(pricingMap, pricing)

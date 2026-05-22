@@ -27,6 +27,7 @@ import ModelBasicInfo from './components/ModelBasicInfo';
 import ModelEndpoints from './components/ModelEndpoints';
 import ModelPricingTable from './components/ModelPricingTable';
 import DynamicPricingBreakdown from './components/DynamicPricingBreakdown';
+import DynamicMatchBreakdown from './components/DynamicMatchBreakdown';
 
 const { Text } = Typography;
 
@@ -101,6 +102,17 @@ const ModelDetailSideSheet = ({
                 <div style={{ padding: '0 24px' }}>
                   <DynamicPricingBreakdown
                     billingExpr={modelData.billing_expr}
+                    t={t}
+                  />
+                </div>
+              </>
+            )}
+            {modelData.billing_mode === 'dynamic_match' && modelData.dynamic_match_config && (
+              <>
+                <Divider margin={16} />
+                <div style={{ padding: '0 24px' }}>
+                  <DynamicMatchBreakdown
+                    dynamicMatchConfig={modelData.dynamic_match_config}
                     t={t}
                   />
                 </div>

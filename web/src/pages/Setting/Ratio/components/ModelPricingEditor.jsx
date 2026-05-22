@@ -50,6 +50,7 @@ import {
 } from '../hooks/useModelPricingEditorState';
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
 import TieredPricingEditor from './TieredPricingEditor';
+import DynamicMatchPricingEditor from './DynamicMatchPricingEditor';
 
 const { Text } = Typography;
 const EMPTY_CANDIDATE_MODEL_NAMES = [];
@@ -126,6 +127,7 @@ export default function ModelPricingEditor({
     handleBillingModeChange,
     handleBillingExprChange,
     handleRequestRuleExprChange,
+    handleDynamicMatchConfigChange,
     handleSubmit,
     addModel,
     deleteModel,
@@ -193,14 +195,18 @@ export default function ModelPricingEditor({
                 ? 'teal'
                 : record.billingMode === 'tiered_expr'
                   ? 'amber'
-                  : 'violet'
+                  : record.billingMode === 'dynamic_match'
+                    ? 'cyan'
+                    : 'violet'
             }
           >
             {record.billingMode === 'per-request'
               ? t('按次计费')
               : record.billingMode === 'tiered_expr'
                 ? getExprModeLabel(record)
-                : t('按量计费')}
+                : record.billingMode === 'dynamic_match'
+                  ? t('动态计费')
+                  : t('按量计费')}
           </Tag>
         ),
       },
@@ -382,14 +388,18 @@ export default function ModelPricingEditor({
                       ? 'teal'
                       : selectedModel.billingMode === 'tiered_expr'
                         ? 'amber'
-                        : 'blue'
+                        : selectedModel.billingMode === 'dynamic_match'
+                          ? 'cyan'
+                          : 'blue'
                   }
                 >
                   {selectedModel.billingMode === 'per-request'
                     ? t('按次计费')
                     : selectedModel.billingMode === 'tiered_expr'
                       ? getExprModeLabel(selectedModel)
-                      : t('按量计费')}
+                      : selectedModel.billingMode === 'dynamic_match'
+                        ? t('动态计费')
+                        : t('按量计费')}
                 </Tag>
               ) : null
             }
@@ -415,11 +425,16 @@ export default function ModelPricingEditor({
                     <Radio value='per-token'>{t('按量计费')}</Radio>
                     <Radio value='per-request'>{t('按次计费')}</Radio>
                     <Radio value='tiered_expr'>{t('表达式/阶梯计费')}</Radio>
+                    <Radio value='dynamic_match'>{t('动态计费')}</Radio>
                   </RadioGroup>
                   <div className='mt-2 text-xs text-gray-500'>
-                    {t(
-                      '普通按量/按次直接填价格就行；如果价格要跟请求参数或请求头联动，请切到表达式/阶梯计费。',
-                    )}
+                    {selectedModel.billingMode === 'dynamic_match'
+                      ? t(
+                          '根据请求体字段动态匹配价格档位，适合视频生成等按分辨率×时长计费的模型。',
+                        )
+                      : t(
+                          '普通按量/按次直接填价格就行；如果价格要跟请求参数或请求头联动，请切到表达式/阶梯计费。',
+                        )}
                   </div>
                 </div>
 
@@ -455,6 +470,12 @@ export default function ModelPricingEditor({
                     onExprChange={handleBillingExprChange}
                     requestRuleExpr={selectedModel.requestRuleExpr}
                     onRequestRuleExprChange={handleRequestRuleExprChange}
+                    t={t}
+                  />
+                ) : selectedModel.billingMode === 'dynamic_match' ? (
+                  <DynamicMatchPricingEditor
+                    model={selectedModel}
+                    onConfigChange={handleDynamicMatchConfigChange}
                     t={t}
                   />
                 ) : (

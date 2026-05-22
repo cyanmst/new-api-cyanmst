@@ -72,12 +72,14 @@ const ModelPricingTable = ({
         ratio: groupRatioValue,
         billingType:
           modelData?.billing_mode === 'tiered_expr'
-            ? t('动态计费')
-            : modelData?.quota_type === 0
-              ? t('按量计费')
-              : modelData?.quota_type === 1
-                ? t('按次计费')
-                : '-',
+            ? t('表达式计费')
+            : modelData?.billing_mode === 'dynamic_match'
+              ? t('动态计费')
+              : modelData?.quota_type === 0
+                ? t('按量计费')
+                : modelData?.quota_type === 1
+                  ? t('按次计费')
+                  : '-',
         priceItems: getModelPriceItems(priceData, t, siteDisplayType),
       };
     });
@@ -96,7 +98,7 @@ const ModelPricingTable = ({
       },
     ];
 
-    const isDynamic = modelData?.billing_mode === 'tiered_expr';
+    const isDynamic = modelData?.billing_mode === 'tiered_expr' || modelData?.billing_mode === 'dynamic_match';
 
     // 动态计费时始终显示倍率列，否则根据设置
     if (showRatio || isDynamic) {
