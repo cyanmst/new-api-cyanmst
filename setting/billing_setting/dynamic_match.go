@@ -45,7 +45,11 @@ func GetDynamicMatchConfig(model string) *DynamicMatchConfig {
 	}
 	var cfg DynamicMatchConfig
 	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		fmt.Printf("[WARN] dynamic_match config parse error for model %q: %v\n", model, err)
 		return nil
+	}
+	if len(cfg.Rules) == 0 && cfg.DefaultPrice == 0 {
+		fmt.Printf("[WARN] dynamic_match config for model %q has no rules and default_price=0, requests will be free\n", model)
 	}
 	return &cfg
 }

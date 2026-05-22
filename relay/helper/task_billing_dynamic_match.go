@@ -1,7 +1,6 @@
 package helper
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -101,15 +100,16 @@ func matchRule(cfg *billing_setting.DynamicMatchConfig, body []byte) (float64, s
 }
 
 func evalCondition(op, fieldVal, ruleVal string) bool {
+	ruleVal = strings.TrimSpace(ruleVal)
 	switch op {
 	case "==":
-		return fieldVal == ruleVal
+		return strings.EqualFold(fieldVal, ruleVal)
 	case "contains":
-		return strings.Contains(fieldVal, ruleVal)
+		return strings.Contains(strings.ToLower(fieldVal), strings.ToLower(ruleVal))
 	case "prefix":
-		return strings.HasPrefix(fieldVal, ruleVal)
+		return strings.HasPrefix(strings.ToLower(fieldVal), strings.ToLower(ruleVal))
 	case "suffix":
-		return strings.HasSuffix(fieldVal, ruleVal)
+		return strings.HasSuffix(strings.ToLower(fieldVal), strings.ToLower(ruleVal))
 	case ">=", "<=", ">", "<":
 		fv, err1 := strconv.ParseFloat(fieldVal, 64)
 		rv, err2 := strconv.ParseFloat(ruleVal, 64)
@@ -159,10 +159,4 @@ func toFloat64(r gjson.Result) float64 {
 	default:
 		return 0
 	}
-}
-
-func init() {
-	// Ensure the compiler sees the import used; this also serves as a
-	// self-check that the function signature matches expectations.
-	_ = fmt.Sprintf
 }
