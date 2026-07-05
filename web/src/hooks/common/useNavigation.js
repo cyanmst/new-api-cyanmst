@@ -26,6 +26,7 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
       home: true,
       console: true,
       pricing: true,
+      status: true, // [TRAXNODE] 分组监控入口默认可见
       docs: true,
       about: true,
     };
@@ -48,6 +49,12 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         text: t('模型广场'),
         itemKey: 'pricing',
         to: '/pricing',
+      },
+      // [TRAXNODE] 分组监控入口（公开监控页 /status）
+      {
+        text: t('分组监控'),
+        itemKey: 'status',
+        to: '/status',
       },
       ...(docsLink
         ? [
@@ -76,6 +83,10 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         return typeof modules.pricing === 'object'
           ? modules.pricing.enabled
           : modules.pricing;
+      }
+      // [TRAXNODE] status 为新增 key，线上 HeaderNav 配置无此字段时默认显示
+      if (link.itemKey === 'status') {
+        return modules.status !== false;
       }
       return modules[link.itemKey] === true;
     });

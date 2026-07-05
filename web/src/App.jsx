@@ -55,6 +55,8 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const About = lazy(() => import('./pages/About'));
 const UserAgreement = lazy(() => import('./pages/UserAgreement'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+// [TRAXNODE] 分组监控公开页
+const GroupStatus = lazy(() => import('./pages/Status'));
 
 function DynamicOAuth2Callback() {
   const { provider } = useParams();
@@ -339,6 +341,15 @@ function App() {
           element={
             <Suspense fallback={<Loading></Loading>} key={location.pathname}>
               <About />
+            </Suspense>
+          }
+        />
+        {/* [TRAXNODE] 分组监控公开路由（无需登录） */}
+        <Route
+          path='/status'
+          element={
+            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+              <GroupStatus />
             </Suspense>
           }
         />

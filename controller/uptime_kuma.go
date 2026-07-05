@@ -21,13 +21,24 @@ const (
 	uptimeKeySuffix  = "_24"
 	apiStatusPath    = "/api/status-page/"
 	apiHeartbeatPath = "/api/status-page/heartbeat/"
+	maxHeartbeats    = 50 // [TRAXNODE] 返回给前端的最大心跳拍数
 )
+
+// HeartbeatPoint [TRAXNODE] 单拍心跳数据（供前端渲染心跳条与响应时间）
+type HeartbeatPoint struct {
+	Status int     `json:"status"`
+	Time   string  `json:"time"`
+	Ping   float64 `json:"ping"`
+}
 
 type Monitor struct {
 	Name   string  `json:"name"`
 	Uptime float64 `json:"uptime"`
 	Status int     `json:"status"`
 	Group  string  `json:"group,omitempty"`
+	// [TRAXNODE] 最近心跳列表（时间升序，最多 maxHeartbeats 拍）与最新一拍响应毫秒
+	Heartbeats []HeartbeatPoint `json:"heartbeats,omitempty"`
+	Ping       float64          `json:"ping,omitempty"`
 }
 
 type UptimeGroupResult struct {
@@ -83,7 +94,9 @@ func fetchGroupData(ctx context.Context, client *http.Client, groupConfig map[st
 
 	var heartbeatData struct {
 		HeartbeatList map[string][]struct {
-			Status int `json:"status"`
+			Status int     `json:"status"`
+			Time   string  `json:"time"` // [TRAXNODE]
+			Ping   float64 `json:"ping"` // [TRAXNODE]
 		} `json:"heartbeatList"`
 		UptimeList map[string]float64 `json:"uptimeList"`
 	}
@@ -118,7 +131,25 @@ func fetchGroupData(ctx context.Context, client *http.Client, groupConfig map[st
 			}
 
 			if heartbeats, exists := heartbeatData.HeartbeatList[monitorID]; exists && len(heartbeats) > 0 {
-				monitor.Status = heartbeats[0].Status
+				// [TRAXNODE] 上游 bug 修复：心跳列表为时间升序，当前状态应取最后一拍（原为 heartbeats[0]）
+				latest := heartbeats[len(heartbeats)-1]
+				monitor.Status = latest.Status
+				monitor.Ping = latest.Ping // [TRAXNODE]
+
+				// [TRAXNODE] 截取尾部最多 maxHeartbeats 拍，供前端渲染心跳条
+				start := 0
+				if len(heartbeats) > maxHeartbeats {
+					start = len(heartbeats) - maxHeartbeats
+				}
+				points := make([]HeartbeatPoint, 0, len(heartbeats)-start)
+				for _, hb := range heartbeats[start:] {
+					points = append(points, HeartbeatPoint{
+						Status: hb.Status,
+						Time:   hb.Time,
+						Ping:   hb.Ping,
+					})
+				}
+				monitor.Heartbeats = points
 			}
 
 			result.Monitors = append(result.Monitors, monitor)
