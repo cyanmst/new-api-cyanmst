@@ -236,7 +236,8 @@ const GroupStatus = () => {
   );
 
   return (
-    <div className='max-w-5xl mx-auto px-4 py-6 md:py-8'>
+    /* [TRAXNODE] 全局 Header 为 fixed 定位(高 64px)且公开路由无布局内边距，页面需自行让位，否则标题栏会被压在头部下方 */
+    <div className='max-w-5xl mx-auto px-4 pt-20 pb-6 md:pt-24 md:pb-8'>
       {/* 标题栏 */}
       <div className='flex flex-wrap items-center justify-between gap-2 mb-6'>
         <div className='flex items-center gap-2'>

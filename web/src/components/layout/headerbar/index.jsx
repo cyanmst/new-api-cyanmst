@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
+import { useActualTheme } from '../../../context/Theme'; // [TRAXNODE]
 import { useHeaderBar } from '../../../hooks/common/useHeaderBar';
 import { useNotifications } from '../../../hooks/common/useNotifications';
 import { useNavigation } from '../../../hooks/common/useNavigation';
@@ -64,8 +65,18 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
 
   const { mainNavLinks } = useNavigation(t, docsLink, headerNavModules);
 
+  const actualTheme = useActualTheme(); // [TRAXNODE] 站内实际主题('light'/'dark')，与 .dark 类加减同源（context/Theme/index.jsx）
+
+  // [TRAXNODE] tailwind.config.js 的 theme.colors 整体覆盖导致 bg-white/75 修饰符类不生成(上游限制)，且项目未配 darkMode:'class'
+  // 导致 dark: 变体跟随系统而非站内开关，故改用 actualTheme 条件类 + 任意值语法
   return (
-    <header className='text-semi-color-text-0 sticky top-0 z-50 transition-colors duration-300 bg-white/75 dark:bg-zinc-900/75 backdrop-blur-lg'>
+    <header
+      className={`text-semi-color-text-0 sticky top-0 z-50 transition-colors duration-300 backdrop-blur-lg ${
+        actualTheme === 'dark'
+          ? 'bg-[rgba(24,24,27,0.75)]'
+          : 'bg-[rgba(255,255,255,0.75)]'
+      }`}
+    >
       <NoticeModal
         visible={noticeVisible}
         onClose={handleNoticeClose}
