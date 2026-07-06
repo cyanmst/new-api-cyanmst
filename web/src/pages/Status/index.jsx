@@ -37,7 +37,7 @@ import {
 } from '@douyinfe/semi-illustrations';
 import { Activity, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { API } from '../../helpers';
+import { API, timestamp2string } from '../../helpers';
 import { UPTIME_STATUS_MAP } from '../../constants/dashboard.constants';
 
 // 自动刷新间隔（秒）
@@ -49,6 +49,15 @@ const STATUS_TAG_COLOR = {
   0: 'red',
   2: 'amber',
   3: 'blue',
+};
+
+// [TRAXNODE] Kuma 心跳时间为无时区标记的 UTC 字符串，按 UTC 解析后转访客本地时区显示
+const formatBeatTime = (raw) => {
+  if (!raw) return '';
+  const ms = Date.parse(raw.replace(' ', 'T') + 'Z');
+  return Number.isNaN(ms)
+    ? raw.split('.')[0]
+    : timestamp2string(Math.floor(ms / 1000));
 };
 
 const GroupStatus = () => {
@@ -126,10 +135,10 @@ const GroupStatus = () => {
       <div className='flex items-center gap-[3px] mt-3'>
         {heartbeats.map((beat, beatIdx) => {
           const beatInfo = getStatusInfo(beat.status);
-          const beatTime = (beat.time || '').split('.')[0];
+          const beatTime = formatBeatTime(beat.time);
           return (
             <Tooltip
-              key={`${beatTime}-${beatIdx}`}
+              key={`${beat.time || 'beat'}-${beatIdx}`}
               content={
                 <div className='text-xs'>
                   <div>{beatTime}</div>
