@@ -143,15 +143,15 @@ func composeTieredTextQuota(relayInfo *relaycommon.RelayInfo, summary textQuotaS
 
 	if tieredResult != nil {
 		if snap := relayInfo.TieredBillingSnapshot; snap != nil {
-			return int(decimal.NewFromFloat(tieredResult.ActualQuotaBeforeGroup).
+			// [TRAXNODE] 回移上游 c9943d37a 计费加固
+			return decimalToQuota(decimal.NewFromFloat(tieredResult.ActualQuotaBeforeGroup).
 				Mul(decimal.NewFromFloat(snap.GroupRatio)).
-				Add(summary.ToolCallSurchargeQuota).
-				Round(0).
-				IntPart())
+				Add(summary.ToolCallSurchargeQuota))
 		}
 	}
 
-	return tieredQuota + int(summary.ToolCallSurchargeQuota.Round(0).IntPart())
+	// [TRAXNODE] 回移上游 c9943d37a 计费加固
+	return tieredQuota + decimalToQuota(summary.ToolCallSurchargeQuota)
 }
 
 func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage) textQuotaSummary {
@@ -285,7 +285,7 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		if !ratio.IsZero() && quotaCalculateDecimal.LessThanOrEqual(decimal.Zero) {
 			quotaCalculateDecimal = decimal.NewFromInt(1)
 		}
-		summary.Quota = int(quotaCalculateDecimal.Round(0).IntPart())
+		summary.Quota = decimalToQuota(quotaCalculateDecimal) // [TRAXNODE] 回移上游 d0bd8aac7 计费加固
 	} else {
 		quotaCalculateDecimal := dModelPrice.Mul(dQuotaPerUnit).Mul(dGroupRatio)
 		quotaCalculateDecimal = quotaCalculateDecimal.Add(summary.ToolCallSurchargeQuota)
@@ -295,7 +295,7 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 				quotaCalculateDecimal = quotaCalculateDecimal.Mul(decimal.NewFromFloat(otherRatio))
 			}
 		}
-		summary.Quota = int(quotaCalculateDecimal.Round(0).IntPart())
+		summary.Quota = decimalToQuota(quotaCalculateDecimal) // [TRAXNODE] 回移上游 d0bd8aac7 计费加固
 	}
 
 	if summary.TotalTokens == 0 {
@@ -305,6 +305,15 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	}
 
 	return summary
+}
+
+// decimalToQuota converts a computed quota decimal to int with saturation
+// (see common.QuotaFromFloat). Oversized multipliers (e.g. an absurd image
+// generation count) must never wrap around and turn a charge into a credit.
+// [TRAXNODE] 回移上游 d0bd8aac7 计费加固
+func decimalToQuota(d decimal.Decimal) int {
+	f, _ := d.Round(0).Float64()
+	return common.QuotaFromFloat(f)
 }
 
 func usageSemanticFromUsage(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) string {

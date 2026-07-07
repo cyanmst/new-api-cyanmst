@@ -11,6 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// MaxImageN caps the image generation count. Without this bound a huge or
+// wrapped-negative n overflows quota calculation into a negative charge.
+// [TRAXNODE] 回移上游 d0bd8aac7 计费加固
+const MaxImageN = 128
+
 type ImageRequest struct {
 	Model             string          `json:"model"`
 	Prompt            string          `json:"prompt" binding:"required"`
