@@ -31,6 +31,13 @@ type HeartbeatPoint struct {
 	Ping   float64 `json:"ping"`
 }
 
+// MonitorTag [TRAXNODE] Kuma 监控项标签（仅取 name/value/color 三字段；value 可为 JSON null，解码后为零值 ""）
+type MonitorTag struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+	Color string `json:"color"`
+}
+
 type Monitor struct {
 	Name   string  `json:"name"`
 	Uptime float64 `json:"uptime"`
@@ -39,6 +46,8 @@ type Monitor struct {
 	// [TRAXNODE] 最近心跳列表（时间升序，最多 maxHeartbeats 拍）与最新一拍响应毫秒
 	Heartbeats []HeartbeatPoint `json:"heartbeats,omitempty"`
 	Ping       float64          `json:"ping,omitempty"`
+	// [TRAXNODE] Kuma 标签列表（状态页开启「显示标签」时透传；未配置或未开启则省略）
+	Tags []MonitorTag `json:"tags,omitempty"`
 }
 
 type UptimeGroupResult struct {
@@ -86,8 +95,9 @@ func fetchGroupData(ctx context.Context, client *http.Client, groupConfig map[st
 			ID          int    `json:"id"`
 			Name        string `json:"name"`
 			MonitorList []struct {
-				ID   int    `json:"id"`
-				Name string `json:"name"`
+				ID   int          `json:"id"`
+				Name string       `json:"name"`
+				Tags []MonitorTag `json:"tags"` // [TRAXNODE] showTags=true 时 Kuma 才输出
 			} `json:"monitorList"`
 		} `json:"publicGroupList"`
 	}
@@ -122,6 +132,7 @@ func fetchGroupData(ctx context.Context, client *http.Client, groupConfig map[st
 			monitor := Monitor{
 				Name:  m.Name,
 				Group: pg.Name,
+				Tags:  m.Tags, // [TRAXNODE] 透传标签（未配置时为空，经 omitempty 省略）
 			}
 
 			monitorID := strconv.Itoa(m.ID)

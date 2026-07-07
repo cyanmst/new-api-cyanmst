@@ -162,6 +162,26 @@ const GroupStatus = () => {
     );
   };
 
+  // [TRAXNODE] 标签 chips（Kuma 标签色，value 非空时显示 "name: value"）
+  // 后端旧版本 / Kuma 未开启「显示标签」时无 tags 字段，优雅降级不渲染
+  const renderMonitorTags = (monitor) => {
+    const tags = monitor.tags;
+    if (!Array.isArray(tags) || tags.length === 0) return null;
+    return (
+      <div className='flex flex-wrap items-center gap-1.5 mb-3'>
+        {tags.map((tag, tagIdx) => (
+          <span
+            key={`${tag.name || 'tag'}-${tagIdx}`}
+            className='text-xs text-[#ffffff] px-2 py-0.5 rounded-full leading-none'
+            style={{ backgroundColor: tag.color || '#8b9aa7' }}
+          >
+            {tag.value ? `${tag.name}: ${tag.value}` : tag.name}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   const renderMonitorCard = (monitor, idx) => {
     const statusInfo = getStatusInfo(monitor.status);
     return (
@@ -184,6 +204,8 @@ const GroupStatus = () => {
             {t(statusInfo.label)}
           </Tag>
         </div>
+        {renderMonitorTags(monitor)}
+        {/* [TRAXNODE] */}
         <div className='flex items-end justify-between gap-2'>
           <div
             className='text-3xl font-bold'
