@@ -54,6 +54,8 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
     enabled: true,
     topup: true,
     personal: true,
+    // [TRAXNODE] 邀请返利页（design §3.4 登记点 3）
+    invitation: true,
   },
   admin: {
     enabled: true,
@@ -63,6 +65,8 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
     user: true,
     setting: true,
     subscription: true,
+    // [TRAXNODE] 返利管理页（design §3.3b/§3.4 登记点 3）
+    rebate: true,
   },
 }
 
@@ -107,12 +111,16 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/usage-logs/task': { section: 'console', module: 'task' },
   '/wallet': { section: 'personal', module: 'topup' },
   '/profile': { section: 'personal', module: 'personal' },
+  // [TRAXNODE] 邀请返利页（design §3.4 登记点 2）
+  '/invitation': { section: 'personal', module: 'invitation' },
   '/channels': { section: 'admin', module: 'channel' },
   '/models': { section: 'admin', module: 'models' },
   '/models/metadata': { section: 'admin', module: 'models' },
   '/models/deployments': { section: 'admin', module: 'models' },
   '/users': { section: 'admin', module: 'user' },
   '/redemption-codes': { section: 'admin', module: 'redemption' },
+  // [TRAXNODE] 返利管理页（design §3.3b/§3.4 登记点 2）
+  '/aff-rebates': { section: 'admin', module: 'rebate' },
   '/subscriptions': { section: 'admin', module: 'subscription' },
   '/system-settings': { section: 'admin', module: 'setting' },
   '/system-settings/site': { section: 'admin', module: 'setting' },

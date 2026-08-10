@@ -55,6 +55,10 @@ const quotaSchema = z.object({
   PreConsumedQuota: z.coerce.number().min(0),
   QuotaForInviter: z.coerce.number().min(0),
   QuotaForInvitee: z.coerce.number().min(0),
+  // [TRAXNODE] 邀请充值返利三配置（design §3.6；后端 controller/option.go 有同步校验）
+  AffRebatePercentage: z.coerce.number().min(0).max(100),
+  AffRebateGroupWhitelist: z.string(),
+  AffRebateFreezeDays: z.coerce.number().int().min(0),
   TopUpLink: z.string(),
   general_setting: z.object({
     docs_link: z.string(),
@@ -231,6 +235,81 @@ export function QuotaSettingsSection({
                     {t('Quota given to invited users ({{formattedQuota}})', {
                       formattedQuota: formatQuotaInputValue(field.value),
                     })}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* [TRAXNODE] 邀请充值返利三配置（design §3.6，照 QuotaForInviter 字段模式） */}
+            <FormField
+              control={form.control}
+              name='AffRebatePercentage'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Rebate Percentage')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      min={0}
+                      max={100}
+                      value={field.value ?? ''}
+                      onChange={handleNumberChange(field.onChange)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      "Percentage of each invited user's top-up amount rebated to the inviter (0-100, 0 disables)"
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='AffRebateGroupWhitelist'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Rebate Group Whitelist')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder='default' {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Comma-separated groups; only inviters in these groups receive rebates'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='AffRebateFreezeDays'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Rebate Freeze Days')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      min={0}
+                      value={field.value ?? ''}
+                      onChange={handleNumberChange(field.onChange)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Days a new rebate stays frozen before being credited; 0 credits immediately'
+                    )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

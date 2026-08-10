@@ -37,6 +37,10 @@ const STATUS_RELATED_KEYS = new Set([
   'general_setting.custom_currency_symbol',
   'general_setting.custom_currency_exchange_rate',
   'oidc.display_name',
+  // [TRAXNODE] 邀请充值返利三配置经 GetStatus 下发前端插值（design §2.1/§3.6），改动需刷新 status
+  'AffRebatePercentage',
+  'AffRebateGroupWhitelist',
+  'AffRebateFreezeDays',
 ])
 
 export function useUpdateOption() {

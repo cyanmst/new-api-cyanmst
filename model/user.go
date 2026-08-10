@@ -217,6 +217,8 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 		"enabled":  true,
 		"topup":    true,
 		"personal": true,
+		// [TRAXNODE] 邀请返利页（侧边栏登记点 6，design §3.4）
+		"invitation": true,
 	}
 
 	// 管理员区域 - 根据角色决定
@@ -229,6 +231,8 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 			"redemption": true,
 			"user":       true,
 			"setting":    false, // 管理员不能访问系统设置
+			// [TRAXNODE] 返利管理页（侧边栏登记点 6，design §3.3b/§3.4）
+			"rebate": true,
 		}
 	} else if userRole == common.RoleRootUser {
 		// 超级管理员可以访问所有功能
@@ -239,6 +243,8 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 			"redemption": true,
 			"user":       true,
 			"setting":    true,
+			// [TRAXNODE] 返利管理页（侧边栏登记点 6，design §3.3b/§3.4）
+			"rebate": true,
 		}
 	}
 	// 普通用户不包含admin区域

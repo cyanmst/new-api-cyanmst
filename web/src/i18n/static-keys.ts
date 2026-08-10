@@ -551,6 +551,10 @@ export const STATIC_I18N_KEYS = [
   'The model that was requested',
   'The upstream channel that served the requests',
 
+  // [TRAXNODE] Sidebar entries (invitation / aff-rebates, design §3.4/§3.5)
+  'Referral Program',
+  'Rebate Management',
+
   // Misc
   'Cancel',
   'Status',

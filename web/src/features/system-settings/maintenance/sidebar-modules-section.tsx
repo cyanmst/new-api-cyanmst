@@ -128,6 +128,11 @@ export function SidebarModulesSection({
         title: t('Profile'),
         description: t('Personal settings and profile management.'),
       },
+      // [TRAXNODE] 邀请返利页（design §3.4 登记点 4 的开关文案）
+      invitation: {
+        title: t('Referral Program'),
+        description: t('Referral link and rebate details'),
+      },
     },
     admin: {
       channel: {
@@ -153,6 +158,11 @@ export function SidebarModulesSection({
       subscription: {
         title: t('Subscription Management'),
         description: t('Manage subscription plans and pricing.'),
+      },
+      // [TRAXNODE] 返利管理页（design §3.3b/§3.4 登记点 4 的开关文案）
+      rebate: {
+        title: t('Rebate Management'),
+        description: t('Audit and reverse referral rebates'),
       },
     },
   }
