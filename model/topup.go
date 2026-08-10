@@ -156,6 +156,9 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(int(quota)), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentMethodStripe)
 
+	// [TRAXNODE] 邀请返利埋点（Stripe）：充值事务提交后调用，内部错误只记日志，不反噬充值主流程
+	ProcessAffRebate(topUp.UserId, topUp.TradeNo, topUp.Money)
+
 	return nil
 }
 
@@ -387,6 +390,12 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 
 	// 事务外记录日志，避免阻塞
 	RecordTopupLog(userId, fmt.Sprintf("管理员补单成功，充值金额: %v，支付金额：%f", logger.FormatQuota(quotaToAdd), payMoney), callerIp, paymentMethod, "admin")
+
+	// [TRAXNODE] 邀请返利埋点（管理员补单）：userId=0 为已成功订单幂等早退，不重复触发；
+	// 订阅订单 trade_no 防御性排除（订阅不返利，其入账走独立路径不经此处，此为兜底）
+	if userId != 0 && GetSubscriptionOrderByTradeNo(tradeNo) == nil {
+		ProcessAffRebate(userId, tradeNo, payMoney)
+	}
 	return nil
 }
 func RechargeCreem(referenceId string, customerEmail string, customerName string, callerIp string) (err error) {
@@ -461,6 +470,9 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用Creem充值成功，充值额度: %v，支付金额：%.2f", quota, topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodCreem)
 
+	// [TRAXNODE] 邀请返利埋点（Creem）：quota=Amount 直接为额度，返利基数用实付金额 Money
+	ProcessAffRebate(topUp.UserId, topUp.TradeNo, topUp.Money)
+
 	return nil
 }
 
@@ -522,6 +534,8 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 
 	if quotaToAdd > 0 {
 		RecordTopupLog(topUp.UserId, fmt.Sprintf("Waffo充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodWaffo)
+		// [TRAXNODE] 邀请返利埋点（Waffo）：quotaToAdd>0 保证已成功订单幂等早退不重复触发
+		ProcessAffRebate(topUp.UserId, topUp.TradeNo, topUp.Money)
 	}
 
 	return nil
@@ -583,6 +597,8 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 
 	if quotaToAdd > 0 {
 		RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("Waffo Pancake充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money))
+		// [TRAXNODE] 邀请返利埋点（Waffo Pancake）：quotaToAdd>0 保证已成功订单幂等早退不重复触发
+		ProcessAffRebate(topUp.UserId, topUp.TradeNo, topUp.Money)
 	}
 
 	return nil

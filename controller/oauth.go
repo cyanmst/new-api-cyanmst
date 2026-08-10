@@ -365,6 +365,7 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 	user.Role = common.RoleCommonUser
 	user.Status = common.UserStatusEnabled
+	user.RegisterIp = c.ClientIP() // [TRAXNODE] 注册 IP 备查（OAuth 统一入口，覆盖内置与自定义 provider）
 
 	// Handle affiliate code
 	inviterId := 0

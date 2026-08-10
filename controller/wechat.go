@@ -93,6 +93,7 @@ func WeChatAuth(c *gin.Context) {
 			user.DisplayName = "WeChat User"
 			user.Role = common.RoleCommonUser
 			user.Status = common.UserStatusEnabled
+			user.RegisterIp = c.ClientIP() // [TRAXNODE] 注册 IP 备查
 
 			if err := user.Insert(0); err != nil {
 				c.JSON(http.StatusOK, gin.H{

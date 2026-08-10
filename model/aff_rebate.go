@@ -251,3 +251,275 @@ func UnlockDueAffRebates(ctx context.Context, batchSize int) (credited int, skip
 		}
 	}
 }
+
+// ===== [TRAXNODE] 明细查询与冲销（用户侧脱敏 DTO / 管理员侧明文 DTO 物理隔离，零共享防串数据） =====
+
+// AffRebateUserItem 用户侧返利明细行；InviteeUsername 已经 maskUsername 脱敏，明文不出后端。
+type AffRebateUserItem struct {
+	Id              int     `json:"id"`
+	InviteeUsername string  `json:"invitee_username"`
+	Money           float64 `json:"money"`
+	RebateQuota     int     `json:"rebate_quota"`
+	Status          int     `json:"status"`
+	UnlockTime      int64   `json:"unlock_time"`
+	CreateTime      int64   `json:"create_time"`
+}
+
+// getUsernamesByIds 批量取用户名（Unscoped 含软删用户：删号后明细仍可对账）；查不到的 id 缺键返回空串。
+func getUsernamesByIds(ids []int) map[int]string {
+	usernames := make(map[int]string, len(ids))
+	if len(ids) == 0 {
+		return usernames
+	}
+	var rows []struct {
+		Id       int
+		Username string
+	}
+	if err := DB.Unscoped().Model(&User{}).Select("id, username").Where("id IN ?", ids).Scan(&rows).Error; err != nil {
+		common.SysError("aff rebate: failed to fetch usernames: " + err.Error())
+		return usernames
+	}
+	for _, r := range rows {
+		usernames[r.Id] = r.Username
+	}
+	return usernames
+}
+
+// GetUserAffRebateLogs 用户侧返利明细（倒序分页），并返回冻结中总额聚合（status=1 求和，供四统计卡「冻结中」）。
+func GetUserAffRebateLogs(userId int, pageInfo *common.PageInfo) (items []*AffRebateUserItem, total int64, frozenTotal int64, err error) {
+	if err = DB.Model(&AffRebateLog{}).Where("inviter_id = ?", userId).Count(&total).Error; err != nil {
+		return nil, 0, 0, err
+	}
+	var logs []*AffRebateLog
+	if err = DB.Where("inviter_id = ?", userId).Order("id desc").
+		Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&logs).Error; err != nil {
+		return nil, 0, 0, err
+	}
+	inviteeIds := make([]int, 0, len(logs))
+	for _, l := range logs {
+		inviteeIds = append(inviteeIds, l.InviteeId)
+	}
+	usernames := getUsernamesByIds(inviteeIds)
+	items = make([]*AffRebateUserItem, 0, len(logs))
+	for _, l := range logs {
+		items = append(items, &AffRebateUserItem{
+			Id:              l.Id,
+			InviteeUsername: maskUsername(usernames[l.InviteeId]),
+			Money:           l.Money,
+			RebateQuota:     l.RebateQuota,
+			Status:          l.Status,
+			UnlockTime:      l.UnlockTime,
+			CreateTime:      l.CreateTime,
+		})
+	}
+	if err = DB.Model(&AffRebateLog{}).Where("inviter_id = ? AND status = ?", userId, AffRebateStatusFrozen).
+		Select("COALESCE(SUM(rebate_quota), 0)").Scan(&frozenTotal).Error; err != nil {
+		return nil, 0, 0, err
+	}
+	return items, total, frozenTotal, nil
+}
+
+// AffInviteeItem 用户侧「邀请的用户」行；Username 已脱敏；ContributedQuota 口径=仅 status=2 已入账
+// （冻结未入账不计、已冲销剔除，与 aff_history「冻结不计入/冲销双扣」语义对齐）。
+type AffInviteeItem struct {
+	Username         string `json:"username"`
+	CreatedAt        int64  `json:"created_at"`
+	ContributedQuota int64  `json:"contributed_quota"`
+}
+
+// GetUserAffInvitees 邀请的用户列表（Unscoped 含软删，与 aff_count「注册即计数」口径一致；total 兼作邀请人数）。
+func GetUserAffInvitees(userId int, pageInfo *common.PageInfo) (items []*AffInviteeItem, total int64, err error) {
+	if err = DB.Unscoped().Model(&User{}).Where("inviter_id = ?", userId).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var invitees []struct {
+		Id        int
+		Username  string
+		CreatedAt int64
+	}
+	if err = DB.Unscoped().Model(&User{}).Select("id, username, created_at").
+		Where("inviter_id = ?", userId).Order("id desc").
+		Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Scan(&invitees).Error; err != nil {
+		return nil, 0, err
+	}
+	inviteeIds := make([]int, 0, len(invitees))
+	for _, u := range invitees {
+		inviteeIds = append(inviteeIds, u.Id)
+	}
+	contributed := make(map[int]int64, len(inviteeIds))
+	if len(inviteeIds) > 0 {
+		var sums []struct {
+			InviteeId int
+			QuotaSum  int64
+		}
+		if err = DB.Model(&AffRebateLog{}).
+			Select("invitee_id, COALESCE(SUM(rebate_quota), 0) AS quota_sum").
+			Where("inviter_id = ? AND invitee_id IN ? AND status = ?", userId, inviteeIds, AffRebateStatusCredited).
+			Group("invitee_id").Scan(&sums).Error; err != nil {
+			return nil, 0, err
+		}
+		for _, s := range sums {
+			contributed[s.InviteeId] = s.QuotaSum
+		}
+	}
+	items = make([]*AffInviteeItem, 0, len(invitees))
+	for _, u := range invitees {
+		items = append(items, &AffInviteeItem{
+			Username:         maskUsername(u.Username),
+			CreatedAt:        u.CreatedAt,
+			ContributedQuota: contributed[u.Id],
+		})
+	}
+	return items, total, nil
+}
+
+// AffRebateAdminItem 管理员侧返利明细行（明文用户名，管理员本有全量 PII）。
+type AffRebateAdminItem struct {
+	AffRebateLog
+	InviterUsername   string `json:"inviter_username"`
+	InviteeUsername   string `json:"invitee_username"`
+	ReverseByUsername string `json:"reverse_by_username,omitempty"`
+}
+
+// AffRebateAdminQuery 管理员明细筛选参数（零值=不过滤）。
+type AffRebateAdminQuery struct {
+	InviterId int
+	InviteeId int
+	TradeNo   string
+	Status    int
+	Keyword   string // 关键词搜用户名（命中邀请人或被邀人任一侧）
+}
+
+// GetAllAffRebateLogs 管理员全量返利明细（明文 + 筛选 + 倒序分页）。
+func GetAllAffRebateLogs(query *AffRebateAdminQuery, pageInfo *common.PageInfo) (items []*AffRebateAdminItem, total int64, err error) {
+	q := DB.Model(&AffRebateLog{})
+	if query.InviterId > 0 {
+		q = q.Where("inviter_id = ?", query.InviterId)
+	}
+	if query.InviteeId > 0 {
+		q = q.Where("invitee_id = ?", query.InviteeId)
+	}
+	if query.TradeNo != "" {
+		q = q.Where("trade_no = ?", query.TradeNo)
+	}
+	if query.Status > 0 {
+		q = q.Where("status = ?", query.Status)
+	}
+	if query.Keyword != "" {
+		like := "%" + query.Keyword + "%"
+		sub := DB.Unscoped().Model(&User{}).Select("id").Where("username LIKE ?", like)
+		q = q.Where("inviter_id IN (?) OR invitee_id IN (?)", sub, sub)
+	}
+	if err = q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var logs []*AffRebateLog
+	if err = q.Order("id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&logs).Error; err != nil {
+		return nil, 0, err
+	}
+	userIds := make([]int, 0, len(logs)*3)
+	for _, l := range logs {
+		userIds = append(userIds, l.InviterId, l.InviteeId)
+		if l.ReverseBy != 0 {
+			userIds = append(userIds, l.ReverseBy)
+		}
+	}
+	usernames := getUsernamesByIds(userIds)
+	items = make([]*AffRebateAdminItem, 0, len(logs))
+	for _, l := range logs {
+		items = append(items, &AffRebateAdminItem{
+			AffRebateLog:      *l,
+			InviterUsername:   usernames[l.InviterId],
+			InviteeUsername:   usernames[l.InviteeId],
+			ReverseByUsername: usernames[l.ReverseBy],
+		})
+	}
+	return items, total, nil
+}
+
+// AffRebateStatusStat 单状态聚合（笔数 + 返利额度求和，供管理员页头概览徽章）。
+type AffRebateStatusStat struct {
+	Status int   `json:"status" gorm:"column:status"`
+	Count  int64 `json:"count" gorm:"column:cnt"`
+	Quota  int64 `json:"quota" gorm:"column:quota_sum"`
+}
+
+// GetAffRebateStatusStats 各状态计数与金额聚合（全库口径，不随筛选变化）。
+func GetAffRebateStatusStats() ([]*AffRebateStatusStat, error) {
+	var stats []*AffRebateStatusStat
+	err := DB.Model(&AffRebateLog{}).
+		Select("status, COUNT(*) AS cnt, COALESCE(SUM(rebate_quota), 0) AS quota_sum").
+		Group("status").Order("status").Scan(&stats).Error
+	return stats, err
+}
+
+// ReverseAffRebateLog 冲销一条返利记录（管理员操作，事务化 + 幂等）：
+//   - status=1 冻结中：直接翻 3，零追讨（额度从未进 aff_quota）；
+//   - status=2 已入账：翻 3 + 邀请人 aff_quota/aff_history 双扣（gorm.Expr 原子，允许负数）；
+//   - status=3 已冲销：幂等返回 alreadyReversed=true，不重复扣减。
+//
+// 行锁读 + WHERE status=? 乐观锁双保险；与解冻任务竞态两序均安全（任一先行，另一方按新状态走对应分支）。
+func ReverseAffRebateLog(id int, adminId int, reason string) (reversed *AffRebateLog, alreadyReversed bool, err error) {
+	// ReverseReason varchar(255) 护栏：按 rune 截断，防超长备注写库失败
+	if runes := []rune(reason); len(runes) > 255 {
+		reason = string(runes[:255])
+	}
+	var l AffRebateLog
+	deducted := false
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockForUpdate(tx).Where("id = ?", id).First(&l).Error; err != nil {
+			return err
+		}
+		if l.Status == AffRebateStatusReversed {
+			alreadyReversed = true
+			return nil
+		}
+		prevStatus := l.Status
+		now := common.GetTimestamp()
+		res := tx.Model(&AffRebateLog{}).Where("id = ? AND status = ?", l.Id, prevStatus).Updates(map[string]interface{}{
+			"status":         AffRebateStatusReversed,
+			"reverse_time":   now,
+			"reverse_by":     adminId,
+			"reverse_reason": reason,
+		})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errors.New("返利记录状态已被并发变更，请刷新后重试")
+		}
+		if prevStatus == AffRebateStatusCredited {
+			if err := tx.Model(&User{}).Where("id = ?", l.InviterId).Updates(map[string]interface{}{
+				"aff_quota":   gorm.Expr("aff_quota - ?", l.RebateQuota),
+				"aff_history": gorm.Expr("aff_history - ?", l.RebateQuota),
+			}).Error; err != nil {
+				return err
+			}
+			deducted = true
+		}
+		l.Status = AffRebateStatusReversed
+		l.ReverseTime = now
+		l.ReverseBy = adminId
+		l.ReverseReason = reason
+		return nil
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	if alreadyReversed {
+		return &l, true, nil
+	}
+	if deducted {
+		if err := InvalidateUserCache(l.InviterId); err != nil {
+			common.SysError(fmt.Sprintf("aff rebate: failed to invalidate user cache %d: %s", l.InviterId, err.Error()))
+		}
+	}
+	// 邀请人侧流水（全链路一体脱敏：被邀人名走 maskUsername）
+	inviteeName, _ := GetUsernameById(l.InviteeId, false)
+	if deducted {
+		RecordLog(l.InviterId, LogTypeSystem, fmt.Sprintf("邀请用户 %s 的充值返利 %s 已被冲销，并从返利余额扣回（订单号 %s）", maskUsername(inviteeName), logger.LogQuota(l.RebateQuota), l.TradeNo))
+	} else {
+		RecordLog(l.InviterId, LogTypeSystem, fmt.Sprintf("邀请用户 %s 的冻结返利 %s 已被冲销（尚未入账，无追讨，订单号 %s）", maskUsername(inviteeName), logger.LogQuota(l.RebateQuota), l.TradeNo))
+	}
+	return &l, false, nil
+}
