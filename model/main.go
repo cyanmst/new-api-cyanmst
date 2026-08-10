@@ -292,6 +292,7 @@ func migrateDB() error {
 		&SystemTaskLock{},
 		&CasbinRule{},
 		&AuthzRole{},
+		&AffRebateLog{}, // [TRAXNODE] 邀请返利明细
 	)
 	if err != nil {
 		return err

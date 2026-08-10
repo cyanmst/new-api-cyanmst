@@ -21,6 +21,9 @@ const (
 	SystemTaskTypeModelUpdate    = "model_update"
 	SystemTaskTypeMidjourneyPoll = "midjourney_poll"
 	SystemTaskTypeAsyncTaskPoll  = "async_task_poll"
+
+	// [TRAXNODE] 邀请返利解冻入账任务
+	SystemTaskTypeAffRebateUnlock = "aff_rebate_unlock"
 )
 
 var ErrSystemTaskLockLost = errors.New("system task lock lost")

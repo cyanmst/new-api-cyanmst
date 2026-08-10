@@ -22,6 +22,7 @@ func RegisterScheduledSystemTasks() {
 	service.RegisterSystemTaskHandler(modelUpdateHandler{})
 	service.RegisterSystemTaskHandler(midjourneyPollHandler{})
 	service.RegisterSystemTaskHandler(asyncTaskPollHandler{})
+	service.RegisterSystemTaskHandler(affRebateUnlockHandler{}) // [TRAXNODE] 邀请返利解冻任务
 }
 
 // channelTestHandler runs the scheduled "test all channels" job. Enablement and

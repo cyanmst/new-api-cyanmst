@@ -124,6 +124,12 @@ var TelegramBotName = ""
 var QuotaForNewUser = 0
 var QuotaForInviter = 0
 var QuotaForInvitee = 0
+
+// [TRAXNODE] 邀请充值返利配置：被邀人每次充值成功，邀请人按实付金额比例获得返利（进 aff_quota）。
+var AffRebatePercentage = 0.0           // 返利百分比，0=关闭（写入校验 0~100 见 controller/option.go）
+var AffRebateGroupWhitelist = "default" // 邀请人分组白名单（逗号分隔），不在名单内静默跳过
+var AffRebateFreezeDays = 3             // 返利冻结天数，到期由解冻任务入账；0=即时入账（向后兼容）
+
 var ChannelDisableThreshold = 5.0
 var AutomaticDisableChannelEnabled = false
 var AutomaticEnableChannelEnabled = false
