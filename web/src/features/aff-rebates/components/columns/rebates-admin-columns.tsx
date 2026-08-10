@@ -173,7 +173,7 @@ export function useAffRebatesAdminColumns({
                           {parts.join(' · ')}
                         </div>
                       }
-                    ></TooltipTrigger>
+                    />
                     <TooltipContent side='top'>
                       <p className='max-w-[320px] text-xs break-words'>
                         {parts.join(' · ')}
