@@ -25,6 +25,12 @@ import { useTranslation } from 'react-i18next'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   formatCurrencyUSD,
   formatQuota,
   formatTimestampToDate,
@@ -159,9 +165,22 @@ export function useAffRebatesAdminColumns({
                 className='-ml-1.5'
               />
               {parts.length > 0 && (
-                <div className='text-muted-foreground mt-0.5 max-w-[220px] text-[11px] break-words'>
-                  {parts.join(' · ')}
-                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <div className='text-muted-foreground mt-0.5 max-w-[220px] truncate text-[11px]'>
+                          {parts.join(' · ')}
+                        </div>
+                      }
+                    ></TooltipTrigger>
+                    <TooltipContent side='top'>
+                      <p className='max-w-[320px] text-xs break-words'>
+                        {parts.join(' · ')}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
           )
