@@ -22,6 +22,7 @@ import {
   CreditCard,
   FileText,
   FlaskConical,
+  Gift,
   Key,
   LayoutDashboard,
   ListTodo,
@@ -36,7 +37,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { type SidebarData } from '@/components/layout/types'
+import type { SidebarData } from '@/components/layout/types'
 import { ROLE } from '@/lib/roles'
 
 /**
@@ -108,6 +109,12 @@ export function useSidebarData(): SidebarData {
             url: '/wallet',
             icon: Wallet,
           },
+          // [TRAXNODE] 邀请返利页入口（design §3.4 登记点 1，钱包下方）
+          {
+            title: t('Referral Program'),
+            url: '/invitation',
+            icon: Gift,
+          },
           {
             title: t('Profile'),
             url: '/profile',
@@ -138,6 +145,12 @@ export function useSidebarData(): SidebarData {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
+          },
+          // [TRAXNODE] 返利管理页入口（design §3.3b/§3.4 登记点 1）
+          {
+            title: t('Rebate Management'),
+            url: '/aff-rebates',
+            icon: Gift,
           },
           {
             title: t('Subscriptions'),

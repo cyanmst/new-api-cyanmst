@@ -251,6 +251,10 @@ export type BillingSettings = {
   PreConsumedQuota: number
   QuotaForInviter: number
   QuotaForInvitee: number
+  // [TRAXNODE] 邀请充值返利三配置
+  AffRebatePercentage: number
+  AffRebateGroupWhitelist: string
+  AffRebateFreezeDays: number
   TopUpLink: string
   'general_setting.docs_link': string
   'quota_setting.enable_free_model_pre_consume': boolean

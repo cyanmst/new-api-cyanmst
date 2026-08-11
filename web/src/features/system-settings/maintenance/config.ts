@@ -71,6 +71,8 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     enabled: true,
     topup: true,
     personal: true,
+    // [TRAXNODE] 邀请返利页（design §3.4 登记点 4）
+    invitation: true,
   },
   admin: {
     enabled: true,
@@ -80,6 +82,8 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     user: true,
     setting: true,
     subscription: true,
+    // [TRAXNODE] 返利管理页（design §3.3b/§3.4 登记点 4）
+    rebate: true,
   },
 }
 

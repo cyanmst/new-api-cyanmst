@@ -120,6 +120,12 @@ export function SidebarModulesCard() {
           title: t('Personal Settings'),
           description: t('Personal info settings'),
         },
+        // [TRAXNODE] 邀请返利页（design §3.4 登记点 5；admin 组模块上游本就不入用户个性化卡）
+        {
+          key: 'invitation',
+          title: t('Referral Program'),
+          description: t('Referral link and rebate details'),
+        },
       ],
     },
   ]

@@ -63,6 +63,10 @@ const BILLING_SECTIONS = [
           PreConsumedQuota: settings.PreConsumedQuota,
           QuotaForInviter: settings.QuotaForInviter,
           QuotaForInvitee: settings.QuotaForInvitee,
+          // [TRAXNODE] 邀请充值返利三配置
+          AffRebatePercentage: settings.AffRebatePercentage,
+          AffRebateGroupWhitelist: settings.AffRebateGroupWhitelist,
+          AffRebateFreezeDays: settings.AffRebateFreezeDays,
           TopUpLink: settings.TopUpLink,
           general_setting: {
             docs_link: settings['general_setting.docs_link'],

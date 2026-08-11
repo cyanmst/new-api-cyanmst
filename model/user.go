@@ -108,6 +108,7 @@ type User struct {
 	StripeCustomer   string                     `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
 	CreatedAt        int64                      `json:"created_at" gorm:"autoCreateTime;column:created_at"`
 	LastLoginAt      int64                      `json:"last_login_at" gorm:"default:0;column:last_login_at"`
+	RegisterIp       string                     `json:"register_ip,omitempty" gorm:"type:varchar(64);default:'';column:register_ip"` // [TRAXNODE] 注册 IP，纯备查不拦截（普通/OAuth/WeChat 三注册路径落库，管理员建号不写）
 	AuthVersion      int64                      `json:"-" gorm:"type:bigint;not null;default:1;column:auth_version"`
 	AdminPermissions map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`
 }
@@ -216,6 +217,8 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 		"enabled":  true,
 		"topup":    true,
 		"personal": true,
+		// [TRAXNODE] 邀请返利页（侧边栏登记点 6，design §3.4）
+		"invitation": true,
 	}
 
 	// 管理员区域 - 根据角色决定
@@ -228,6 +231,8 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 			"redemption": true,
 			"user":       true,
 			"setting":    false, // 管理员不能访问系统设置
+			// [TRAXNODE] 返利管理页（侧边栏登记点 6，design §3.3b/§3.4）
+			"rebate": true,
 		}
 	} else if userRole == common.RoleRootUser {
 		// 超级管理员可以访问所有功能
@@ -238,6 +243,8 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 			"redemption": true,
 			"user":       true,
 			"setting":    true,
+			// [TRAXNODE] 返利管理页（侧边栏登记点 6，design §3.3b/§3.4）
+			"rebate": true,
 		}
 	}
 	// 普通用户不包含admin区域
@@ -505,9 +512,24 @@ func HardDeleteUserById(id int) error {
 	return user.HardDelete()
 }
 
+// [TRAXNODE] aff_count 数据层归真（方案 A）：邀请计数与奖励发放解耦——
+// inviteUser 仅负责 aff_count 恒自增（不再受 QuotaForInviter 开关捆绑），
+// 奖励额度发放拆至 grantInviterRewardQuota（仍受调用侧合规闸与奖励>0 约束，行为与上游一致）。
 func inviteUser(inviterId int) error {
+	result := DB.Model(&User{}).Where("id = ?", inviterId).
+		Update("aff_count", gorm.Expr("aff_count + ?", 1))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// [TRAXNODE] grantInviterRewardQuota 发放邀请注册奖励额度（原 inviteUser 的额度部分，仅 QuotaForInviter>0 时被调用）。
+func grantInviterRewardQuota(inviterId int) error {
 	result := DB.Model(&User{}).Where("id = ?", inviterId).Updates(map[string]interface{}{
-		"aff_count":   gorm.Expr("aff_count + ?", 1),
 		"aff_quota":   gorm.Expr("aff_quota + ?", common.QuotaForInviter),
 		"aff_history": gorm.Expr("aff_history + ?", common.QuotaForInviter),
 	})
@@ -653,6 +675,10 @@ func (user *User) finishInsert(inviterId int) {
 	if common.QuotaForNewUser > 0 {
 		RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", logger.LogQuota(common.QuotaForNewUser)))
 	}
+	// [TRAXNODE] aff_count 数据层归真（方案 A）：计数恒自增，不受支付合规/奖励开关影响
+	if inviterId != 0 {
+		_ = inviteUser(inviterId)
+	}
 	if inviterId != 0 && operation_setting.IsPaymentComplianceConfirmed() {
 		if common.QuotaForInvitee > 0 {
 			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee, true)
@@ -661,7 +687,7 @@ func (user *User) finishInsert(inviterId int) {
 		if common.QuotaForInviter > 0 {
 			//_ = IncreaseUserQuota(inviterId, common.QuotaForInviter)
 			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
-			_ = inviteUser(inviterId)
+			_ = grantInviterRewardQuota(inviterId) // [TRAXNODE] 仅发奖励额度（计数已在上方解耦自增）
 		}
 	}
 }
@@ -710,6 +736,10 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 	if common.QuotaForNewUser > 0 {
 		RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", logger.LogQuota(common.QuotaForNewUser)))
 	}
+	// [TRAXNODE] aff_count 数据层归真（方案 A）：计数恒自增，不受支付合规/奖励开关影响
+	if inviterId != 0 {
+		_ = inviteUser(inviterId)
+	}
 	if inviterId != 0 && operation_setting.IsPaymentComplianceConfirmed() {
 		if common.QuotaForInvitee > 0 {
 			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee, true)
@@ -717,7 +747,7 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 		}
 		if common.QuotaForInviter > 0 {
 			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
-			_ = inviteUser(inviterId)
+			_ = grantInviterRewardQuota(inviterId) // [TRAXNODE] 仅发奖励额度（计数已在上方解耦自增）
 		}
 	}
 }

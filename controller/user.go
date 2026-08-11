@@ -268,6 +268,7 @@ func Register(c *gin.Context) {
 		DisplayName: user.Username,
 		InviterId:   inviterId,
 		Role:        common.RoleCommonUser, // 明确设置角色为普通用户
+		RegisterIp:  c.ClientIP(),          // [TRAXNODE] 注册 IP，纯备查不拦截
 	}
 	if common.EmailVerificationEnabled {
 		cleanUser.Email = user.Email
@@ -450,6 +451,8 @@ func TransferAffQuota(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserTransferFailed, map[string]any{"Error": err.Error()})
 		return
 	}
+	// [TRAXNODE] 划转流水：上游全链路零审计日志，补一条（topups 订单账/aff_rebate_logs 返利账/划转流水三本账闭环）
+	model.RecordLog(id, model.LogTypeSystem, fmt.Sprintf("邀请返利划转：%s 已划转至钱包余额", logger.LogQuota(tran.Quota)))
 	common.ApiSuccessI18n(c, i18n.MsgUserTransferSuccess, nil)
 }
 

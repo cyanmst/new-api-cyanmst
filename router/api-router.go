@@ -98,6 +98,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/passkey/verify/finish", middleware.DisableCache(), controller.PasskeyVerifyFinish)
 				selfRoute.DELETE("/passkey", middleware.DisableCache(), controller.PasskeyDelete)
 				selfRoute.GET("/aff", controller.GetAffCode)
+				selfRoute.GET("/aff/rebates", controller.GetUserAffRebates)   // [TRAXNODE] 邀请返利明细（脱敏）
+				selfRoute.GET("/aff/invitees", controller.GetUserAffInvitees) // [TRAXNODE] 邀请用户列表（脱敏）
 				selfRoute.GET("/topup/info", controller.GetTopUpInfo)
 				selfRoute.GET("/topup/self", controller.GetUserTopUps)
 				selfRoute.POST("/topup", middleware.CriticalRateLimit(), controller.TopUp)
@@ -150,6 +152,14 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.GET("/2fa/stats", controller.Admin2FAStats)
 				adminRoute.DELETE("/:id/2fa", controller.AdminDisable2FA)
 			}
+		}
+
+		// [TRAXNODE] 邀请返利管理（Root/Admin）：全量明细（明文）+ 冲销执行
+		affRebateAdminRoute := apiRouter.Group("/aff_rebate")
+		affRebateAdminRoute.Use(middleware.AdminAuth())
+		{
+			affRebateAdminRoute.GET("/", controller.GetAllAffRebates)
+			affRebateAdminRoute.POST("/:id/reverse", controller.ReverseAffRebate)
 		}
 
 		// Subscription billing (plans, purchase, admin management)

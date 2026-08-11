@@ -123,6 +123,11 @@ func GetStatus(c *gin.Context) {
 		"user_agreement_enabled":      legalSetting.UserAgreement != "",
 		"privacy_policy_enabled":      legalSetting.PrivacyPolicy != "",
 		"checkin_enabled":             operation_setting.GetCheckinSetting().Enabled,
+
+		// [TRAXNODE] 邀请返利运营参数下发（均为非敏感展示值，前端规则文案/页头标语/归属条动态插值）
+		"aff_rebate_percentage":      common.AffRebatePercentage,
+		"aff_rebate_freeze_days":     common.AffRebateFreezeDays,
+		"aff_rebate_group_whitelist": common.AffRebateGroupWhitelist,
 	}
 
 	// 根据启用状态注入可选内容

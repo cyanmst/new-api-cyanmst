@@ -227,6 +227,25 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	// [TRAXNODE] 邀请充值返利配置输入校验（比例 0~100、冻结天数 >=0）
+	case "AffRebatePercentage":
+		percentage, parseErr := strconv.ParseFloat(option.Value.(string), 64)
+		if parseErr != nil || percentage < 0 || percentage > 100 {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "邀请返利比例必须为 0~100 之间的数字",
+			})
+			return
+		}
+	case "AffRebateFreezeDays":
+		freezeDays, parseErr := strconv.Atoi(option.Value.(string))
+		if parseErr != nil || freezeDays < 0 {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "邀请返利冻结天数必须为不小于 0 的整数",
+			})
+			return
+		}
 	case "GroupRatio":
 		err = ratio_setting.CheckGroupRatio(option.Value.(string))
 		if err != nil {

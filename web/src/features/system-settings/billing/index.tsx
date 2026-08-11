@@ -29,6 +29,10 @@ const defaultBillingSettings: BillingSettings = {
   PreConsumedQuota: 0,
   QuotaForInviter: 0,
   QuotaForInvitee: 0,
+  // [TRAXNODE] 邀请充值返利三配置（默认与后端 common/constants.go 一致）
+  AffRebatePercentage: 0,
+  AffRebateGroupWhitelist: 'default',
+  AffRebateFreezeDays: 3,
   TopUpLink: '',
   'general_setting.docs_link': '',
   'quota_setting.enable_free_model_pre_consume': true,
