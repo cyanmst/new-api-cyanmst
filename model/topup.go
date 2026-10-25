@@ -230,6 +230,10 @@ func RechargeEpay(tradeNo string, actualPaymentMethod string, callerIp string) (
 
 	common.SysLog(common.LogText("Epay top-up succeeded trade_no=%s user_id=%d quota_to_add=%d money=%.2f", topUp.TradeNo, topUp.UserId, quotaToAdd, topUp.Money))
 	RecordTopupLog(topUp.UserId, common.NewMessage("Online top-up succeeded, amount added: {{quota}}, payment amount: {{amount}}", map[string]any{"quota": logger.FormatQuota(quotaToAdd), "amount": fmt.Sprintf("%f", topUp.Money)}), callerIp, topUp.PaymentMethod, PaymentProviderEpay)
+	// [TRAXNODE] Referral rebate hook (Epay). Runs only after the settlement transaction has
+	// committed and only for a first-time credit (duplicate callbacks returned above via
+	// alreadyDone); rebate errors are logged inside and never roll back the top-up.
+	ProcessAffRebate(topUp.UserId, topUp.TradeNo, topUp.Money)
 	return false, nil
 }
 
