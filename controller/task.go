@@ -458,6 +458,10 @@ func tasksToDto(tasks []*model.Task, fillUser bool, viewerRole int) []*dto.TaskD
 			}
 		}
 		item := relay.TaskModel2Dto(task)
+		// [TRAXNODE] Only administrators see which channel ran the task.
+		if viewerRole < common.RoleAdminUser {
+			item.ChannelId = 0
+		}
 		item.LegacyVideoAvailable = legacyVideoAvailable(task)
 		item.ResultDiscarded = task.PrivateData.ResultDiscarded
 		if task.Status == model.TaskStatusSuccess {

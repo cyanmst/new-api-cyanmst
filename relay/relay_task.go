@@ -498,7 +498,8 @@ func videoFetchByIDRespBodyBuilder(c *gin.Context) (respBody []byte, taskResp *d
 	if isOpenAIVideoAPI {
 		adaptor := GetTaskAdaptor(originTask.Platform)
 		if adaptor == nil {
-			taskResp = service.TaskErrorWrapperLocal(fmt.Errorf("invalid channel id: %d", originTask.ChannelId), "invalid_channel_id", http.StatusBadRequest)
+			// [TRAXNODE] Keep the channel id out of the error returned to API callers.
+			taskResp = service.TaskErrorWrapperLocal(errors.New("invalid channel id"), "invalid_channel_id", http.StatusBadRequest)
 			return
 		}
 		if converter, ok := adaptor.(channel.OpenAIVideoConverter); ok {
@@ -515,9 +516,12 @@ func videoFetchByIDRespBodyBuilder(c *gin.Context) (respBody []byte, taskResp *d
 	}
 
 	// 通用 TaskDto 格式
+	// [TRAXNODE] API callers must not see which channel ran their task.
+	taskDto := TaskModel2Dto(originTask)
+	taskDto.ChannelId = 0
 	respBody, err = common.Marshal(dto.TaskResponse[any]{
 		Code: "success",
-		Data: TaskModel2Dto(originTask),
+		Data: taskDto,
 	})
 	if err != nil {
 		taskResp = service.TaskErrorWrapper(err, "marshal_response_failed", http.StatusInternalServerError)

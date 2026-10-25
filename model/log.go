@@ -114,6 +114,9 @@ func assignDisplayLogIds(logs []*Log, startIdx int) {
 func formatUserLogs(logs []*Log, startIdx int) {
 	for i := range logs {
 		logs[i].ChannelName = ""
+		// [TRAXNODE] Hide the channel id from user views; together with the
+		// channel name it lets users infer which upstream served them.
+		logs[i].ChannelId = 0
 		logs[i].Other = formatLogOtherJSON(logs[i].Other, logOtherVisibilityUser)
 	}
 	assignDisplayLogIds(logs, startIdx)
@@ -654,6 +657,8 @@ func StreamUserLogs(ctx context.Context, userId int, filter LogFilter, fn func(*
 		count++
 		log.Id = count
 		log.ChannelName = ""
+		// [TRAXNODE] User exports hide the channel id, same as the list view.
+		log.ChannelId = 0
 		log.Other = formatLogOtherJSON(log.Other, logOtherVisibilityUser)
 		return fn(log)
 	})

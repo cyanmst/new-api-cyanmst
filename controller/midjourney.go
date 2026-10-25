@@ -323,6 +323,10 @@ func GetUserMidjourney(c *gin.Context) {
 			items[i] = midjourney
 		}
 	}
+	// [TRAXNODE] Users must not see which channel ran their tasks.
+	for _, midjourney := range items {
+		midjourney.ChannelId = 0
+	}
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(items)
 	common.ApiSuccess(c, pageInfo)
