@@ -527,6 +527,12 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 	// 事务外记录日志，避免阻塞
 	syncCreditUserQuotaCache(userId, quotaToAdd, common.LogText("manual topup"))
 	RecordTopupLog(userId, common.NewMessage("Administrator completed the order, amount added: {{quota}}, payment amount: {{amount}}", map[string]any{"quota": logger.FormatQuota(quotaToAdd), "amount": fmt.Sprintf("%f", payMoney)}), callerIp, paymentMethod, "admin")
+
+	// [TRAXNODE] 邀请返利埋点（管理员补单）：userId=0 为已成功订单幂等早退，不重复触发；
+	// 订阅订单 trade_no 防御性排除（订阅不返利，其入账走独立路径不经此处，此为兜底）
+	if userId != 0 && GetSubscriptionOrderByTradeNo(tradeNo) == nil {
+		ProcessAffRebate(userId, tradeNo, payMoney)
+	}
 	return nil
 }
 func RechargeCreem(referenceId string, customerEmail string, customerName string, callerIp string) (err error) {
@@ -659,6 +665,8 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 
 	if quotaToAdd > 0 {
 		RecordTopupLog(topUp.UserId, common.NewMessage("{{provider}} top-up succeeded, amount added: {{quota}}, payment amount: {{amount}}", map[string]any{"provider": "Waffo", "quota": logger.FormatQuota(quotaToAdd), "amount": fmt.Sprintf("%.2f", topUp.Money)}), callerIp, topUp.PaymentMethod, PaymentMethodWaffo)
+		// [TRAXNODE] 邀请返利埋点（Waffo）：quotaToAdd>0 保证已成功订单幂等早退不重复触发
+		ProcessAffRebate(topUp.UserId, topUp.TradeNo, topUp.Money)
 	}
 
 	return nil
@@ -719,6 +727,8 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 
 	if quotaToAdd > 0 {
 		RecordLog(topUp.UserId, LogTypeTopup, common.NewMessage("{{provider}} top-up succeeded, amount added: {{quota}}, payment amount: {{amount}}", map[string]any{"provider": "Waffo Pancake", "quota": logger.FormatQuota(quotaToAdd), "amount": fmt.Sprintf("%.2f", topUp.Money)}))
+		// [TRAXNODE] 邀请返利埋点（Waffo Pancake）：quotaToAdd>0 保证已成功订单幂等早退不重复触发
+		ProcessAffRebate(topUp.UserId, topUp.TradeNo, topUp.Money)
 	}
 
 	return nil
