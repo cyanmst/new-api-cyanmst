@@ -441,7 +441,7 @@ func TransferAffQuota(c *gin.Context) {
 		return
 	}
 	// [TRAXNODE] 划转流水：上游全链路零审计日志，补一条（topups 订单账/aff_rebate_logs 返利账/划转流水三本账闭环）
-	model.RecordLog(id, model.LogTypeSystem, fmt.Sprintf("邀请返利划转：%s 已划转至钱包余额", logger.LogQuota(tran.Quota)))
+	model.RecordLog(id, model.LogTypeSystem, common.NewMessage("Referral rebate transfer: {{quota}} moved to wallet balance", map[string]any{"quota": logger.FormatQuota(tran.Quota)}))
 	common.ApiSuccessT(c, "Transfer successful", nil)
 }
 

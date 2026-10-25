@@ -141,8 +141,9 @@ func ProcessAffRebate(inviteeId int, tradeNo string, money float64) {
 			return
 		}
 		unlockDate := time.Unix(rebateLog.UnlockTime, 0).Format("2006-01-02")
-		RecordLog(invitee.InviterId, LogTypeSystem, fmt.Sprintf("邀请用户 %s 充值 $%.2f，获得返利 %s（比例 %.2f%%，冻结至 %s 解冻入账，订单号 %s）", maskedInvitee, money, logger.LogQuota(rebateQuota), percentage, unlockDate, tradeNo))
-		RecordLog(inviteeId, LogTypeSystem, fmt.Sprintf("充值 $%.2f 为邀请人带来返利 %s（冻结至 %s，订单号 %s）", money, logger.LogQuota(rebateQuota), unlockDate, tradeNo))
+		// rc.46: RecordLog takes an i18n Message (English key + display-ready params, translated by the web console)
+		RecordLog(invitee.InviterId, LogTypeSystem, common.NewMessage("Invited user {{invitee}} topped up {{money}} and earned you a rebate of {{quota}} (rate {{rate}}%, frozen until {{unlock_date}}, order {{trade_no}})", map[string]any{"invitee": maskedInvitee, "money": fmt.Sprintf("$%.2f", money), "quota": logger.FormatQuota(rebateQuota), "rate": fmt.Sprintf("%.2f", percentage), "unlock_date": unlockDate, "trade_no": tradeNo}))
+		RecordLog(inviteeId, LogTypeSystem, common.NewMessage("Your top-up of {{money}} earned your inviter a rebate of {{quota}} (frozen until {{unlock_date}}, order {{trade_no}})", map[string]any{"money": fmt.Sprintf("$%.2f", money), "quota": logger.FormatQuota(rebateQuota), "unlock_date": unlockDate, "trade_no": tradeNo}))
 		return
 	}
 	// 即时路径（AffRebateFreezeDays=0，向后兼容）：明细 INSERT 与额度 UPDATE 同一事务，
@@ -162,11 +163,11 @@ func ProcessAffRebate(inviteeId int, tradeNo string, money float64) {
 		common.SysError(fmt.Sprintf("aff rebate: failed to record rebate (trade_no=%s, inviter=%d): %s", tradeNo, invitee.InviterId, err.Error()))
 		return
 	}
-	if err := InvalidateUserCache(invitee.InviterId); err != nil {
+	if err := invalidateUserCache(invitee.InviterId); err != nil { // rc.46: exported InvalidateUserCache removed
 		common.SysError(fmt.Sprintf("aff rebate: failed to invalidate user cache %d: %s", invitee.InviterId, err.Error()))
 	}
-	RecordLog(invitee.InviterId, LogTypeSystem, fmt.Sprintf("邀请用户 %s 充值 $%.2f，获得返利 %s（比例 %.2f%%，订单号 %s）", maskedInvitee, money, logger.LogQuota(rebateQuota), percentage, tradeNo))
-	RecordLog(inviteeId, LogTypeSystem, fmt.Sprintf("充值 $%.2f 为邀请人带来返利 %s（订单号 %s）", money, logger.LogQuota(rebateQuota), tradeNo))
+	RecordLog(invitee.InviterId, LogTypeSystem, common.NewMessage("Invited user {{invitee}} topped up {{money}} and earned you a rebate of {{quota}} (rate {{rate}}%, order {{trade_no}})", map[string]any{"invitee": maskedInvitee, "money": fmt.Sprintf("$%.2f", money), "quota": logger.FormatQuota(rebateQuota), "rate": fmt.Sprintf("%.2f", percentage), "trade_no": tradeNo}))
+	RecordLog(inviteeId, LogTypeSystem, common.NewMessage("Your top-up of {{money}} earned your inviter a rebate of {{quota}} (order {{trade_no}})", map[string]any{"money": fmt.Sprintf("$%.2f", money), "quota": logger.FormatQuota(rebateQuota), "trade_no": tradeNo}))
 }
 
 // HasFrozenAffRebate 是否仍存在冻结中的返利记录（解冻任务 Enabled 判定用：
@@ -240,11 +241,11 @@ func UnlockDueAffRebates(ctx context.Context, batchSize int) (credited int, skip
 				continue
 			}
 			credited++
-			if err := InvalidateUserCache(l.InviterId); err != nil {
+			if err := invalidateUserCache(l.InviterId); err != nil {
 				common.SysError(fmt.Sprintf("aff rebate: failed to invalidate user cache %d: %s", l.InviterId, err.Error()))
 			}
 			inviteeName, _ := GetUsernameById(l.InviteeId, false)
-			RecordLog(l.InviterId, LogTypeSystem, fmt.Sprintf("邀请用户 %s 的冻结返利 %s 已解冻入账（订单号 %s）", maskUsername(inviteeName), logger.LogQuota(l.RebateQuota), l.TradeNo))
+			RecordLog(l.InviterId, LogTypeSystem, common.NewMessage("Frozen rebate {{quota}} from invited user {{invitee}} has been unlocked and credited (order {{trade_no}})", map[string]any{"invitee": maskUsername(inviteeName), "quota": logger.FormatQuota(l.RebateQuota), "trade_no": l.TradeNo}))
 		}
 		if len(logs) < batchSize {
 			return credited, skipped, failed, nil
@@ -510,16 +511,16 @@ func ReverseAffRebateLog(id int, adminId int, reason string) (reversed *AffRebat
 		return &l, true, nil
 	}
 	if deducted {
-		if err := InvalidateUserCache(l.InviterId); err != nil {
+		if err := invalidateUserCache(l.InviterId); err != nil {
 			common.SysError(fmt.Sprintf("aff rebate: failed to invalidate user cache %d: %s", l.InviterId, err.Error()))
 		}
 	}
 	// 邀请人侧流水（全链路一体脱敏：被邀人名走 maskUsername）
 	inviteeName, _ := GetUsernameById(l.InviteeId, false)
 	if deducted {
-		RecordLog(l.InviterId, LogTypeSystem, fmt.Sprintf("邀请用户 %s 的充值返利 %s 已被冲销，并从返利余额扣回（订单号 %s）", maskUsername(inviteeName), logger.LogQuota(l.RebateQuota), l.TradeNo))
+		RecordLog(l.InviterId, LogTypeSystem, common.NewMessage("Rebate {{quota}} from invited user {{invitee}} has been reversed and deducted from your rebate balance (order {{trade_no}})", map[string]any{"invitee": maskUsername(inviteeName), "quota": logger.FormatQuota(l.RebateQuota), "trade_no": l.TradeNo}))
 	} else {
-		RecordLog(l.InviterId, LogTypeSystem, fmt.Sprintf("邀请用户 %s 的冻结返利 %s 已被冲销（尚未入账，无追讨，订单号 %s）", maskUsername(inviteeName), logger.LogQuota(l.RebateQuota), l.TradeNo))
+		RecordLog(l.InviterId, LogTypeSystem, common.NewMessage("Frozen rebate {{quota}} from invited user {{invitee}} has been reversed (not yet credited, nothing deducted, order {{trade_no}})", map[string]any{"invitee": maskUsername(inviteeName), "quota": logger.FormatQuota(l.RebateQuota), "trade_no": l.TradeNo}))
 	}
 	return &l, false, nil
 }

@@ -105,11 +105,13 @@ func ReverseAffRebate(c *gin.Context) {
 	}
 	if !alreadyReversed {
 		// 管理操作审计：落邀请人日志流（LogTypeManage + admin_info）；文案不含被邀人用户名（脱敏铁律）
-		content := fmt.Sprintf("管理员冲销邀请返利记录 #%d（订单号 %s，返利 %s）", rebateLog.Id, rebateLog.TradeNo, logger.LogQuota(rebateLog.RebateQuota))
+		content := fmt.Sprintf("管理员冲销邀请返利记录 #%d（订单号 %s，返利 %s）", rebateLog.Id, rebateLog.TradeNo, logger.FormatQuota(rebateLog.RebateQuota))
 		if rebateLog.ReverseReason != "" {
 			content += fmt.Sprintf("，原因：%s", rebateLog.ReverseReason)
 		}
-		model.RecordLogWithAdminInfo(rebateLog.InviterId, model.LogTypeManage, content, auditOperatorInfo(c))
+		// rc.46: Manage-type entries go to the audit log (admin_info kept out of user log views);
+		// no structured operation descriptor, so the console falls back to the raw content.
+		model.RecordLogWithAdminInfo(rebateLog.InviterId, model.LogTypeManage, content, auditOperatorInfo(c), nil, c)
 	}
 	common.ApiSuccess(c, gin.H{
 		"already_reversed": alreadyReversed,
