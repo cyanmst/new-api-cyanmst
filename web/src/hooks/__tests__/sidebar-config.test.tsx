@@ -83,7 +83,8 @@ describe('security sidebar visibility', () => {
       result.current
         .find((group) => group.id === 'personal')
         ?.items.map((item) => item.title)
-    ).toEqual(['Wallet', 'Profile', 'Security & Access'])
+    // [TRAXNODE] the Referral Program entry sits under Wallet and is visible when its key is missing
+    ).toEqual(['Wallet', 'Referral Program', 'Profile', 'Security & Access'])
     expect(
       result.current
         .flatMap((group) => group.items)

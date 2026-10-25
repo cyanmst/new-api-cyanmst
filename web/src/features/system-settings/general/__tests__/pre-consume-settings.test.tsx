@@ -44,6 +44,10 @@ function Fixture() {
             QuotaForNewUser: 0,
             QuotaForInviter: 0,
             QuotaForInvitee: 0,
+            // [TRAXNODE] referral rebate settings are part of the quota section props
+            AffRebatePercentage: 0,
+            AffRebateGroupWhitelist: 'default',
+            AffRebateFreezeDays: 3,
             TopUpLink: '',
             quota_setting: {
               enable_free_model_pre_consume: true,
