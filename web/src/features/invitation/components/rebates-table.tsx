@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { DataTablePage, useDataTable } from '@/components/data-table'
+import { getServerMessage } from '@/lib/server-error-message'
 
 import { getAffRebates } from '../api'
 import { useRebatesColumns } from './columns/rebates-columns'
@@ -44,7 +45,8 @@ export function RebatesTable() {
         page_size: pagination.pageSize,
       })
       if (!res.success) {
-        toast.error(res.message || t('Failed to load rebate records'))
+        // [TRAXNODE] rc.46 localizes backend messages client-side (message_key)
+        toast.error(getServerMessage(res) || t('Failed to load rebate records'))
         return { items: [], total: 0 }
       }
       return {

@@ -194,6 +194,15 @@ export function auditFieldLabel(key: string, t: TFunction): string {
       return t('Admin permissions updated')
     case 'provider_id':
       return t('Provider ID')
+    // [TRAXNODE] referral rebate reversal params (action aff_rebate.reverse)
+    case 'rebate_id':
+      return t('Rebate record ID')
+    case 'trade_no':
+      return t('Trade No')
+    case 'deducted':
+      return t('Deducted amount')
+    case 'reverse_reason':
+      return t('Reversal reason')
     default:
       return key
   }

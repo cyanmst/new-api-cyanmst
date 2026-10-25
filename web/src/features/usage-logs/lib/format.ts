@@ -562,6 +562,9 @@ const AUDIT_TEMPLATES: Record<string, string> = {
   // Logs
   'log.clear': 'Cleared historical logs',
   'log.cleanup_start': 'Log cleanup task started.',
+  // [TRAXNODE] referral rebate reversal (controller/aff_rebate.go)
+  'aff_rebate.reverse':
+    'Reversed referral rebate #{{rebate_id}} of user {{username}} (order {{trade_no}}, rebate {{quota}}, deducted {{deducted}}, reason: {{reverse_reason}})',
   // Generic middleware fallback
   generic: '{{method}} {{route}}',
 }

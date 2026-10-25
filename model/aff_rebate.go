@@ -460,15 +460,20 @@ func GetAffRebateStatusStats() ([]*AffRebateStatusStat, error) {
 //   - status=3 已冲销：幂等返回 alreadyReversed=true，不重复扣减。
 //
 // 行锁读 + WHERE status=? 乐观锁双保险；与解冻任务竞态两序均安全（任一先行，另一方按新状态走对应分支）。
-func ReverseAffRebateLog(id int, adminId int, reason string) (reversed *AffRebateLog, alreadyReversed bool, err error) {
+// [TRAXNODE] deducted reports whether aff_quota/aff_history were clawed back
+// (credited record); the controller records it in the reversal audit row.
+func ReverseAffRebateLog(id int, adminId int, reason string) (reversed *AffRebateLog, alreadyReversed bool, deducted bool, err error) {
 	// ReverseReason varchar(255) 护栏：按 rune 截断，防超长备注写库失败
 	if runes := []rune(reason); len(runes) > 255 {
 		reason = string(runes[:255])
 	}
 	var l AffRebateLog
-	deducted := false
 	err = DB.Transaction(func(tx *gorm.DB) error {
 		if err := lockForUpdate(tx).Where("id = ?", id).First(&l).Error; err != nil {
+			// [TRAXNODE] Localizable message instead of gorm's raw "record not found"
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return common.NewMessage("Rebate record not found")
+			}
 			return err
 		}
 		if l.Status == AffRebateStatusReversed {
@@ -487,7 +492,8 @@ func ReverseAffRebateLog(id int, adminId int, reason string) (reversed *AffRebat
 			return res.Error
 		}
 		if res.RowsAffected == 0 {
-			return errors.New("返利记录状态已被并发变更，请刷新后重试")
+			// [TRAXNODE] Localizable message (web console translates via message_key)
+			return common.NewMessage("The rebate record was changed by another operation. Refresh and try again.")
 		}
 		if prevStatus == AffRebateStatusCredited {
 			if err := tx.Model(&User{}).Where("id = ?", l.InviterId).Updates(map[string]interface{}{
@@ -505,10 +511,10 @@ func ReverseAffRebateLog(id int, adminId int, reason string) (reversed *AffRebat
 		return nil
 	})
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, err
 	}
 	if alreadyReversed {
-		return &l, true, nil
+		return &l, true, false, nil
 	}
 	if deducted {
 		if err := invalidateUserCache(l.InviterId); err != nil {
@@ -522,5 +528,5 @@ func ReverseAffRebateLog(id int, adminId int, reason string) (reversed *AffRebat
 	} else {
 		RecordLog(l.InviterId, LogTypeSystem, common.NewMessage("Frozen rebate {{quota}} from invited user {{invitee}} has been reversed (not yet credited, nothing deducted, order {{trade_no}})", map[string]any{"invitee": maskUsername(inviteeName), "quota": logger.FormatQuota(l.RebateQuota), "trade_no": l.TradeNo}))
 	}
-	return &l, false, nil
+	return &l, false, deducted, nil
 }
