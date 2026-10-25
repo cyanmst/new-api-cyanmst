@@ -304,6 +304,14 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"POST /api/deployments/:id/extend":                  accessTokenScopeRule("deployment:write"),
 	"DELETE /api/deployments/:id":                       accessTokenScopeRule("deployment:write"),
 
+	// [TRAXNODE] referral rebate routes (router/api-router.go); reuse existing scopes:
+	// user-side details follow GET /api/user/aff (wallet:read), admin-side list/reverse
+	// follow the top-up order admin routes (billing:read / billing:write).
+	"GET /api/user/aff/rebates":        accessTokenScopeRule("wallet:read"),
+	"GET /api/user/aff/invitees":       accessTokenScopeRule("wallet:read"),
+	"GET /api/aff_rebate/":             accessTokenScopeRule("billing:read"),
+	"POST /api/aff_rebate/:id/reverse": accessTokenScopeRule("billing:write"),
+
 	// router/relay-router.go
 	"POST /pg/chat/completions": accessTokenSessionRule,
 }
