@@ -34,6 +34,7 @@ import { useAffiliate, useTopupInfo } from '@/features/wallet/hooks'
 import { useStatus } from '@/hooks/use-status'
 import { getSelf } from '@/lib/api'
 import { formatQuota } from '@/lib/format'
+import { getServerMessage } from '@/lib/server-error-message'
 
 import { getAffRebates } from './api'
 import { InvitedStrip } from './components/invited-strip'
@@ -116,7 +117,8 @@ export function Invitation() {
         setTransferring(true)
         const response = await transferAffiliateQuota({ quota })
         if (!response.success) {
-          toast.error(response.message || t('Transfer failed'))
+          // [TRAXNODE] rc.46 localizes backend messages client-side (message_key)
+          toast.error(getServerMessage(response) || t('Transfer failed'))
           return false
         }
         let latestBalance: number | null = null
