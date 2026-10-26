@@ -4,12 +4,36 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/model"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 )
+
+// [TRAXNODE] perfMetricsVisibleGroups limits non-admin callers to their usable
+// groups (same scope as /api/pricing); admins keep the full group list. Without
+// this, users could fingerprint the upstreams of groups they cannot use.
+func perfMetricsVisibleGroups(c *gin.Context) []string {
+	if c.GetInt("role") >= common.RoleAdminUser {
+		return append(lo.Keys(ratio_setting.GetGroupRatioCopy()), "auto")
+	}
+	userGroup := ""
+	if id := c.GetInt("id"); id != 0 {
+		if user, err := model.GetUserCache(id); err == nil {
+			userGroup = user.Group
+		}
+	}
+	// A nil list means "every group" to perfmetrics, so never return nil.
+	groups := lo.Keys(service.GetUserUsableGroups(userGroup))
+	if groups == nil {
+		groups = []string{}
+	}
+	return groups
+}
 
 func GetPerfMetricsSummary(c *gin.Context) {
 	hours := 24
@@ -19,8 +43,13 @@ func GetPerfMetricsSummary(c *gin.Context) {
 		}
 	}
 
-	activeGroups := append(lo.Keys(ratio_setting.GetGroupRatioCopy()), "auto")
-	result, err := perfmetrics.QuerySummaryAll(hours, activeGroups)
+	recentModels := c.QueryArray("recent_model")
+	if len(recentModels) > perfmetrics.MaxRecentModels {
+		common.ApiErrorStatus(c, http.StatusBadRequest, common.NewMessage("Invalid parameters"))
+		return
+	}
+	activeGroups := perfMetricsVisibleGroups(c) // [TRAXNODE]
+	result, err := perfmetrics.QuerySummaryAll(hours, activeGroups, recentModels...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -53,9 +82,10 @@ func GetPerfMetrics(c *gin.Context) {
 	}
 
 	result, err := perfmetrics.Query(perfmetrics.QueryParams{
-		Model: modelName,
-		Group: c.Query("group"),
-		Hours: hours,
+		Model:         modelName,
+		Group:         c.Query("group"),
+		Hours:         hours,
+		AllowedGroups: perfMetricsVisibleGroups(c), // [TRAXNODE]
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -65,18 +95,8 @@ func GetPerfMetrics(c *gin.Context) {
 		return
 	}
 
-	result.Groups = filterActiveGroups(result.Groups)
-
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    result,
-	})
-}
-
-func filterActiveGroups(groups []perfmetrics.GroupResult) []perfmetrics.GroupResult {
-	activeRatios := ratio_setting.GetGroupRatioCopy()
-	return lo.Filter(groups, func(g perfmetrics.GroupResult, _ int) bool {
-		_, ok := activeRatios[g.Group]
-		return ok || g.Group == "auto"
 	})
 }

@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/input'
 import { useDebounce } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { formatQuota } from '@/lib/format'
+import { getServerMessage } from '@/lib/server-error-message'
 
 import { getAffRebateLogs, reverseAffRebate } from '../api'
 import { AFF_REBATE_STATUS, type AffRebateAdminItem } from '../types'
@@ -90,7 +91,8 @@ export function AffRebatesTable() {
         trade_no: tradeNo || undefined,
       })
       if (!res.success) {
-        toast.error(res.message || t('Failed to load rebate records'))
+        // [TRAXNODE] rc.46 localizes backend messages client-side (message_key)
+        toast.error(getServerMessage(res) || t('Failed to load rebate records'))
         return { items: [], total: 0, stats: null }
       }
       return {
@@ -132,7 +134,8 @@ export function AffRebatesTable() {
     try {
       const res = await reverseAffRebate(item.id, reason)
       if (!res.success) {
-        toast.error(res.message || t('Reversal failed'))
+        // [TRAXNODE] rc.46 localizes backend messages client-side (message_key)
+        toast.error(getServerMessage(res) || t('Reversal failed'))
         return
       }
       if (res.data?.already_reversed) {

@@ -47,6 +47,7 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
     detail: true,
     token: true,
     log: true,
+    audit: true,
     midjourney: true,
     task: true,
   },
@@ -54,6 +55,7 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
     enabled: true,
     topup: true,
     personal: true,
+    security: true,
     // [TRAXNODE] 邀请返利页（design §3.4 登记点 3）
     invitation: true,
   },
@@ -107,10 +109,12 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/keys': { section: 'console', module: 'token' },
   '/usage-logs': { section: 'console', module: 'log' },
   '/usage-logs/common': { section: 'console', module: 'log' },
+  '/usage-logs/audit': { section: 'console', module: 'audit' },
   '/usage-logs/drawing': { section: 'console', module: 'midjourney' },
   '/usage-logs/task': { section: 'console', module: 'task' },
   '/wallet': { section: 'personal', module: 'topup' },
   '/profile': { section: 'personal', module: 'personal' },
+  '/security': { section: 'personal', module: 'security' },
   // [TRAXNODE] 邀请返利页（design §3.4 登记点 2）
   '/invitation': { section: 'personal', module: 'invitation' },
   '/channels': { section: 'admin', module: 'channel' },

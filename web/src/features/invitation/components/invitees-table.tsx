@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { DataTablePage, useDataTable } from '@/components/data-table'
+import { getServerMessage } from '@/lib/server-error-message'
 
 import { getAffInvitees } from '../api'
 import { useInviteesColumns } from './columns/invitees-columns'
@@ -44,7 +45,8 @@ export function InviteesTable() {
         page_size: pagination.pageSize,
       })
       if (!res.success) {
-        toast.error(res.message || t('Failed to load invited users'))
+        // [TRAXNODE] rc.46 localizes backend messages client-side (message_key)
+        toast.error(getServerMessage(res) || t('Failed to load invited users'))
         return { items: [], total: 0 }
       }
       return {
